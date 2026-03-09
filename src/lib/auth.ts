@@ -15,6 +15,7 @@ function randomString(length: number) {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
+
   let result = "";
   for (let i = 0; i < array.length; i++) {
     result += chars[array[i] % chars.length];
@@ -41,11 +42,21 @@ async function generatePkce() {
 }
 
 export async function login() {
+  if (!COGNITO_DOMAIN || !CLIENT_ID) {
+    throw new Error(
+      "Missing Cognito configuration. Check VITE_COGNITO_DOMAIN and VITE_COGNITO_CLIENT_ID."
+    );
+  }
+
   const state = randomString(32);
   const { verifier, challenge } = await generatePkce();
 
   sessionStorage.setItem("oauth_state", state);
   sessionStorage.setItem("pkce_verifier", verifier);
+  sessionStorage.setItem(
+    "post_login_path",
+    window.location.pathname + window.location.search + window.location.hash
+  );
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -57,7 +68,7 @@ export async function login() {
     state,
   });
 
-  window.location.href = `${AUTHORIZE_ENDPOINT}?${params.toString()}`;
+  window.location.assign(`${AUTHORIZE_ENDPOINT}?${params.toString()}`);
 }
 
 export async function handleAuthCallback() {
@@ -106,8 +117,15 @@ export async function handleAuthCallback() {
   sessionStorage.removeItem("oauth_state");
   sessionStorage.removeItem("pkce_verifier");
 
-  window.history.replaceState({}, document.title, REDIRECT_URI);
   return true;
+}
+
+export function getPostLoginPath() {
+  return sessionStorage.getItem("post_login_path") || "/";
+}
+
+export function clearPostLoginPath() {
+  sessionStorage.removeItem("post_login_path");
 }
 
 export function logout() {
@@ -120,7 +138,7 @@ export function logout() {
     logout_uri: REDIRECT_URI,
   });
 
-  window.location.href = `${LOGOUT_ENDPOINT}?${params.toString()}`;
+  window.location.assign(`${LOGOUT_ENDPOINT}?${params.toString()}`);
 }
 
 export function isAuthenticated() {

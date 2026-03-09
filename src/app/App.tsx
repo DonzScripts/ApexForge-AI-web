@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.svg";
-import { handleAuthCallback, isAuthenticated } from "../lib/auth";
+import {
+  handleAuthCallback,
+  isAuthenticated,
+  getPostLoginPath,
+  clearPostLoginPath,
+} from "../lib/auth";
 
 const linkStyle = ({ isActive }: { isActive: boolean }) => ({
   opacity: isActive ? 1 : 0.65,
@@ -25,6 +30,7 @@ export type AppOutletContext = {
 export default function App() {
   const [signedIn, setSignedIn] = useState(isAuthenticated());
   const [authError, setAuthError] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function initAuth() {
@@ -34,6 +40,12 @@ export default function App() {
         if (completed) {
           setSignedIn(true);
           setAuthError("");
+
+          const path = getPostLoginPath();
+          clearPostLoginPath();
+
+          window.history.replaceState({}, document.title, path);
+          navigate(path, { replace: true });
         } else {
           setSignedIn(isAuthenticated());
         }
@@ -46,7 +58,7 @@ export default function App() {
     }
 
     void initAuth();
-  }, []);
+  }, [navigate]);
 
   return (
     <>
