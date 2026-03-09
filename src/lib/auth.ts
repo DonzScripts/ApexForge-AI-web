@@ -62,13 +62,14 @@ export async function login() {
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
     response_type: "code",
-    scope: "openid email profile",
+    scope: "openid email",
     code_challenge_method: "S256",
     code_challenge: challenge,
     state,
   });
-
-  window.location.assign(`${AUTHORIZE_ENDPOINT}?${params.toString()}`);
+ window.location.assign(
+    `${COGNITO_DOMAIN}/oauth2/authorize?${params.toString()}`
+  );
 }
 
 export async function handleAuthCallback() {
