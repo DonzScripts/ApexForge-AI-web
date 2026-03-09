@@ -4,56 +4,54 @@ const CLIENT_ID = import.meta.env.VITE_COGNITO_CLIENT_ID;
 const REDIRECT_URI =
   window.location.hostname === "localhost"
     ? "http://localhost:5173/"
-    : window.location.origin + "/";
+    : `${window.location.origin}/`;
 
+const AUTHORIZE_ENDPOINT = `${COGNITO_DOMAIN}/oauth2/authorize`;
 const TOKEN_ENDPOINT = `${COGNITO_DOMAIN}/oauth2/token`;
 const LOGOUT_ENDPOINT = `${COGNITO_DOMAIN}/logout`;
-const AUTHORIZE_ENDPOINT = `${COGNITO_DOMAIN}/oauth2/authorize`;
 
 function randomString(length: number) {
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-  let result = "";
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
+  let result = "";
   for (let i = 0; i < array.length; i++) {
     result += chars[array[i] % chars.length];
   }
   return result;
 }
 
-async function sha256(plain: string) {
+async function sha256(value: string): Promise<ArrayBuffer> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(plain);
-  return await crypto.subtle.digest("SHA-256", data);
+  return crypto.subtle.digest("SHA-256", encoder.encode(value));
 }
 
-function base64UrlEncode(buffer: ArrayBuffer) {
+function base64UrlEncode(buffer: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(buffer)))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
 }
 
-async function generatePkcePair() {
+async function generatePkce() {
   const verifier = randomString(64);
-  const digest = await sha256(verifier);
-  const challenge = base64UrlEncode(digest);
+  const challenge = base64UrlEncode(await sha256(verifier));
   return { verifier, challenge };
 }
 
 export async function login() {
   const state = randomString(32);
-  const { verifier, challenge } = await generatePkcePair();
+  const { verifier, challenge } = await generatePkce();
 
-  sessionStorage.setItem("pkce_verifier", verifier);
   sessionStorage.setItem("oauth_state", state);
+  sessionStorage.setItem("pkce_verifier", verifier);
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
     response_type: "code",
     scope: "openid email profile",
-    redirect_uri: REDIRECT_URI,
     code_challenge_method: "S256",
     code_challenge: challenge,
     state,
@@ -66,13 +64,14 @@ export async function handleAuthCallback() {
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const savedState = sessionStorage.getItem("oauth_state");
-  const verifier = sessionStorage.getItem("pkce_verifier");
 
   if (!code) return false;
 
+  const savedState = sessionStorage.getItem("oauth_state");
+  const verifier = sessionStorage.getItem("pkce_verifier");
+
   if (!state || state !== savedState || !verifier) {
-    throw new Error("Invalid OAuth state or missing PKCE verifier.");
+    throw new Error("Invalid auth callback state.");
   }
 
   const body = new URLSearchParams({
@@ -100,10 +99,12 @@ export async function handleAuthCallback() {
 
   localStorage.setItem("access_token", data.access_token);
   localStorage.setItem("id_token", data.id_token);
-  localStorage.setItem("refresh_token", data.refresh_token || "");
+  if (data.refresh_token) {
+    localStorage.setItem("refresh_token", data.refresh_token);
+  }
 
-  sessionStorage.removeItem("pkce_verifier");
   sessionStorage.removeItem("oauth_state");
+  sessionStorage.removeItem("pkce_verifier");
 
   window.history.replaceState({}, document.title, REDIRECT_URI);
   return true;
@@ -122,14 +123,10 @@ export function logout() {
   window.location.href = `${LOGOUT_ENDPOINT}?${params.toString()}`;
 }
 
-export function getAccessToken() {
-  return localStorage.getItem("access_token");
-}
-
-export function getIdToken() {
-  return localStorage.getItem("id_token");
-}
-
 export function isAuthenticated() {
   return !!localStorage.getItem("access_token");
+}
+
+export function getAccessToken() {
+  return localStorage.getItem("access_token");
 }
