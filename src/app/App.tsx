@@ -1,51 +1,49 @@
-import { useEffect, useState } from "react";
-import { handleAuthCallback, isAuthenticated, login, logout } from "../lib/auth";
-import { getMe } from "../lib/api";
+import { Outlet, NavLink } from "react-router-dom";
+import logo from "../assets/logo.svg";
 
-export default function App() {
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [error, setError] = useState("");
+const linkStyle = ({ isActive }: { isActive: boolean }) => ({
+  opacity: isActive ? 1 : 0.65,
+  padding: "10px 12px",
+  borderRadius: 999,
+  border: `1px solid ${isActive ? "rgba(255,45,45,0.35)" : "rgba(255,255,255,0.10)"}`,
+  background: isActive ? "rgba(255,45,45,0.12)" : "rgba(255,255,255,0.04)",
+});
 
-  useEffect(() => {
-    async function init() {
-      try {
-        await handleAuthCallback();
-
-        if (isAuthenticated()) {
-          const profile = await getMe();
-          setUser(profile);
-        }
-      } catch (err: any) {
-        setError(err.message || "Auth error");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    init();
-  }, []);
-
-  if (loading) return <div>Loading ApexForgeAI...</div>;
-
-  if (!isAuthenticated()) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>ApexForgeAI</h1>
-        <p>You are not signed in.</p>
-        <button onClick={() => login()}>Sign In</button>
-        {error && <p>{error}</p>}
-      </div>
-    );
-  }
-
+export function App() {
   return (
-    <div style={{ padding: 24 }}>
-      <h1>ApexForgeAI</h1>
-      <p>Signed in</p>
-      <pre>{JSON.stringify(user, null, 2)}</pre>
-      <button onClick={() => logout()}>Logout</button>
-      {error && <p>{error}</p>}
-    </div>
+    <>
+      <div className="navbar">
+        <div className="container nav-inner">
+          <div className="badge">
+          <img
+  src={logo}
+  alt="ApexForge AI logo"
+  className="logoGlow"
+  style={{
+    width: 95,
+    height: 95,
+    objectFit: "contain",
+  }}
+/>
+            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+              <strong style={{ fontSize: 14 }}>ApexForge AI</strong>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>AI fitness coach</span>
+            </div>
+          </div>
+
+          <div className="nav-links">
+            <NavLink to="/" style={linkStyle}>Home</NavLink>
+            <NavLink to="/checkin" style={linkStyle}>Check-In</NavLink>
+            <NavLink to="/plans" style={linkStyle}>Plans</NavLink>
+            <NavLink to="/progress" style={linkStyle}>Progress</NavLink>
+            <NavLink to="/settings" style={linkStyle}>Settings</NavLink>
+          </div>
+        </div>
+      </div>
+
+      <div className="container page">
+        <Outlet />
+      </div>
+    </>
   );
 }
