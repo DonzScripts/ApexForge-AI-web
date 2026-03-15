@@ -1,0 +1,40 @@
+import json
+import os
+import boto3
+from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key
+
+dynamodb = boto3.resource("dynamodb")
+plans_table = dynamodb.Table(os.environ["PLANS_TABLE"])
+
+
+def response(status_code, body):
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps(body)
+    }
+
+
+def lambda_handler(event, context):
+    try:
+        claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
+        user_id = claims.get("sub")
+
+        if not user_id:
+            return response(401, {"error": "Unauthorized"})
+
+        result = plans_table.query(
+            KeyConditionExpression=Key("userId").eq(user_id)
+        )
+
+        items = result.get("Items", [])
+
+        return response(200, items)
+
+    except ClientError as e:
+        return response(500, {"error": str(e)})
+    except Exception as e:
+        return response(500, {"error": str(e)})
