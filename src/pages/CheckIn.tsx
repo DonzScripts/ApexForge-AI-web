@@ -25,6 +25,7 @@ export default function CheckIn() {
       setStatusMessage("");
 
       await postCheckIn({
+        checkInDate: new Date().toISOString(),
         type: mode,
         notes,
         imageUrl: selectedFile?.name,
@@ -80,8 +81,8 @@ export default function CheckIn() {
 
             <p className="p">
               {mode === "physique"
-                ? "Upload a progress photo + stats to get a current standing and focus plan."
-                : "Snap a meal or nutrition label for calories, ingredient quality, and smarter choices."}
+                ? "Upload a progress photo + notes to track consistency and future coaching feedback."
+                : "Upload a meal or nutrition label image and add notes for smarter food coaching."}
             </p>
 
             <div style={{ marginTop: 16 }}>
@@ -112,8 +113,8 @@ export default function CheckIn() {
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={
                   mode === "physique"
-                    ? "Example: morning check-in, bodyweight 188, good energy, slept 7 hours"
-                    : "Example: chicken bowl, label scan, want macro feedback"
+                    ? "Example: morning physique check-in, felt leaner today, energy was good"
+                    : "Example: chicken bowl and label scan, want macro and quality feedback"
                 }
                 style={{
                   width: "100%",

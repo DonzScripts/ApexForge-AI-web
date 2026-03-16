@@ -1,6 +1,7 @@
 import json
 import os
 import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 dynamodb = boto3.resource("dynamodb")
@@ -19,37 +20,29 @@ def response(status_code, body):
 
 def lambda_handler(event, context):
     try:
-        claims = event.get("requestContext", {}).get("authorizer", {}).get("jwt", {}).get("claims", {})
+        claims = (
+            event.get("requestContext", {})
+            .get("authorizer", {})
+            .get("jwt", {})
+            .get("claims", {})
+        )
         user_id = claims.get("sub")
 
         if not user_id:
             return response(401, {"error": "Unauthorized"})
 
-        body = json.loads(event.get("body") or "{}")
-
-        check_in_date = body.get("checkInDate")
-        if not check_in_date:
-            return response(400, {"error": "checkInDate is required"})
-
-        item = {
-            "userId": user_id,
-            "checkInDate": check_in_date,
-            "type": body.get("type"),
-            "imageUrl": body.get("imageUrl"),
-            "weight": body.get("weight"),
-            "steps": body.get("steps"),
-            "mood": body.get("mood"),
-            "notes": body.get("notes", "")
-        }
-
-        checkins_table.put_item(Item=item)
+        result = checkins_table.query(
+            KeyConditionExpression=Key("userId").eq(user_id),
+            ScanIndexForward=False
+        )
 
         return response(200, {
             "success": True,
-            "item": item
+            "items": result.get("Items", [])
         })
 
     except ClientError as e:
         return response(500, {"error": str(e)})
     except Exception as e:
         return response(500, {"error": str(e)})
+
