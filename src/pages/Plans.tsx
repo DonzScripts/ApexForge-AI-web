@@ -1,10 +1,70 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { MotionPage } from "../motion/MotionPage";
 import { fade } from "../motion/animations";
+import { getPlans, postPlan } from "../services/plans";
+
+type PlansResponse = {
+  workout?: string;
+  meal?: string;
+};
 
 export default function Plans() {
+  const [plans, setPlans] = useState<PlansResponse>({});
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
+  const [isGeneratingWorkout, setIsGeneratingWorkout] = useState(false);
+  const [isGeneratingMeal, setIsGeneratingMeal] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+
+  async function loadPlans() {
+    try {
+      setIsLoadingPlans(true);
+      const data = await getPlans();
+      setPlans(data ?? {});
+    } catch (error) {
+      console.error("Failed to load plans:", error);
+      setStatusMessage("Unable to load plans right now.");
+    } finally {
+      setIsLoadingPlans(false);
+    }
+  }
+
+  async function handleRegenerateWorkout() {
+    try {
+      setIsGeneratingWorkout(true);
+      setStatusMessage("");
+      await postPlan("workout");
+      await loadPlans();
+      setStatusMessage("Workout plan updated successfully.");
+    } catch (error) {
+      console.error("Workout plan generation failed:", error);
+      setStatusMessage("Unable to regenerate workout plan right now.");
+    } finally {
+      setIsGeneratingWorkout(false);
+    }
+  }
+
+  async function handleRegenerateMeal() {
+    try {
+      setIsGeneratingMeal(true);
+      setStatusMessage("");
+      await postPlan("meal");
+      await loadPlans();
+      setStatusMessage("Meal plan updated successfully.");
+    } catch (error) {
+      console.error("Meal plan generation failed:", error);
+      setStatusMessage("Unable to regenerate meal plan right now.");
+    } finally {
+      setIsGeneratingMeal(false);
+    }
+  }
+
+  useEffect(() => {
+    loadPlans();
+  }, []);
+
   return (
     <MotionPage>
       <div className="grid">
@@ -16,9 +76,19 @@ export default function Plans() {
         <motion.div {...fade(0.08)}>
           <Card>
             <h2 className="h2">Workout Plan</h2>
-            <p className="p">Upper/Lower split (Gym). Progressive overload, 4-week block.</p>
+            <p className="p">
+              {isLoadingPlans
+                ? "Loading workout plan..."
+                : plans.workout ||
+                  "No workout plan found yet. Generate one through your backend."}
+            </p>
             <div style={{ marginTop: 14 }}>
-              <Button label="Regenerate with AI" onClick={() => {}} />
+              <Button
+                label={
+                  isGeneratingWorkout ? "Generating..." : "Regenerate with AI"
+                }
+                onClick={handleRegenerateWorkout}
+              />
             </div>
           </Card>
         </motion.div>
@@ -26,12 +96,28 @@ export default function Plans() {
         <motion.div {...fade(0.14)}>
           <Card>
             <h2 className="h2">Meal Plan</h2>
-            <p className="p">High-protein, moderate carbs. Tuned to your activity level.</p>
+            <p className="p">
+              {isLoadingPlans
+                ? "Loading meal plan..."
+                : plans.meal ||
+                  "No meal plan found yet. Generate one through your backend."}
+            </p>
             <div style={{ marginTop: 14 }}>
-              <Button label="Regenerate with AI" onClick={() => {}} />
+              <Button
+                label={isGeneratingMeal ? "Generating..." : "Regenerate with AI"}
+                onClick={handleRegenerateMeal}
+              />
             </div>
           </Card>
         </motion.div>
+
+        {statusMessage ? (
+          <motion.div {...fade(0.2)}>
+            <Card>
+              <p className="p">{statusMessage}</p>
+            </Card>
+          </motion.div>
+        ) : null}
       </div>
     </MotionPage>
   );
