@@ -10,13 +10,11 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const token = await getAuthToken();
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
+  const headers = new Headers(options.headers || {});
+  headers.set("Content-Type", "application/json");
 
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -29,5 +27,5 @@ export async function apiFetch<T>(
     throw new Error(text || `Request failed: ${response.status}`);
   }
 
-  return response.json();
+  return response.json() as Promise<T>;
 }
