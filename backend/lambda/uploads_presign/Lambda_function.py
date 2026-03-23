@@ -1,10 +1,15 @@
 import os
 import json
 import uuid
-import mimetypes
 import boto3
+from botocore.config import Config
 
-s3 = boto3.client("s3")
+s3 = boto3.client(
+    "s3",
+    region_name=os.environ.get("AWS_REGION", "us-east-1"),
+    config=Config(signature_version="s3v4"),
+)
+
 UPLOAD_BUCKET = os.environ["UPLOAD_BUCKET"]
 
 ALLOWED_CONTENT_TYPES = {
@@ -20,9 +25,9 @@ def response(status_code, body):
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "OPTIONS,POST"
+            "Access-Control-Allow-Methods": "OPTIONS,POST",
         },
-        "body": json.dumps(body)
+        "body": json.dumps(body),
     }
 
 def get_user_sub(event):
@@ -69,7 +74,6 @@ def lambda_handler(event, context):
     extension = ALLOWED_CONTENT_TYPES[content_type]
     unique_id = str(uuid.uuid4())
 
-    safe_name = file_name.lower().replace(" ", "-")
     if category == "food":
         key = f"private/{user_sub}/food/{unique_id}{extension}"
     else:
@@ -80,10 +84,10 @@ def lambda_handler(event, context):
             ClientMethod="put_object",
             Params={
                 "Bucket": UPLOAD_BUCKET,
-                "Key": key,
-                "ContentType": content_type
+                "Key": key
             },
-            ExpiresIn=900
+            ExpiresIn=900,
+            HttpMethod="PUT",
         )
 
         return response(200, {
